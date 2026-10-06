@@ -1,0 +1,20 @@
+# Visual Studio
+.vs/
+*.user
+*.suo
+
+# .NET
+bin/
+obj/
+
+# CellVera build output
+dist/
+installer/
+
+# Logs/temp
+*.log
+*.tmp
+
+# Windows
+Thumbs.db
+Desktop.ini

@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>CellVera</AssemblyName>
+    <RootNamespace>CellVera</RootNamespace>
+    <ApplicationIcon>Assets\CellVera.ico</ApplicationIcon>
+    <Product>CellVera</Product>
+    <Title>CellVera</Title>
+    <Description>Laptop battery health, capacity, and power insights.</Description>
+    <Version>1.2.0</Version>
+    <Authors>CellVera</Authors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Win32.SystemEvents" Version="8.0.0" />
+    <PackageReference Include="System.Management" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Remove="Assets\CellVera.ico" />
+    <Resource Include="Assets\CellVera.ico" />
+  </ItemGroup>
+</Project>

@@ -1,7 +1,9 @@
 using System.IO;
 using System.Text.Json;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Media;
+using System.Windows.Interop;
 using Microsoft.Win32;
 
 namespace CellVera.Services;
@@ -56,6 +58,46 @@ public static class ThemeService
     }
 
     public static string PreferenceLabel => Preference.ToString();
+
+    public static void ApplyWindowChromeTheme(Window window)
+    {
+        try
+        {
+            IntPtr handle = new WindowInteropHelper(window).Handle;
+            if (handle == IntPtr.Zero)
+                return;
+
+            int useDarkMode = IsLightTheme ? 0 : 1;
+            const int DwmwaUseImmersiveDarkMode = 20;
+            const int DwmwaUseImmersiveDarkModeBefore20H1 = 19;
+
+            int result = DwmSetWindowAttribute(
+                handle,
+                DwmwaUseImmersiveDarkMode,
+                ref useDarkMode,
+                Marshal.SizeOf<int>());
+
+            if (result != 0)
+            {
+                DwmSetWindowAttribute(
+                    handle,
+                    DwmwaUseImmersiveDarkModeBefore20H1,
+                    ref useDarkMode,
+                    Marshal.SizeOf<int>());
+            }
+        }
+        catch
+        {
+            // Native title-bar theming is best-effort. The app content still follows the selected theme.
+        }
+    }
+
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmSetWindowAttribute(
+        IntPtr hwnd,
+        int dwAttribute,
+        ref int pvAttribute,
+        int cbAttribute);
 
     private static void SystemEvents_UserPreferenceChanged(object sender, UserPreferenceChangedEventArgs e)
     {

@@ -1,7 +1,10 @@
 using System.Diagnostics;
 using System.IO;
+using IOPath = System.IO.Path;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
+using System.Windows.Shapes;
 using System.Windows.Threading;
 using CellVera.Models;
 using CellVera.Services;
@@ -10,22 +13,36 @@ namespace CellVera;
 
 public partial class MainWindow : Window
 {
+    private static readonly TimeSpan HistoryWindow = TimeSpan.FromHours(24);
+
     private readonly BatteryService _batteryService = new();
+    private readonly ChargeHistoryService _historyService = new();
+    private readonly BatteryNotificationService _notificationService = new();
+    private readonly TrayService _trayService = new();
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromSeconds(15) };
+
     private bool _isRefreshing;
     private bool _themeSelectionReady;
+    private bool _isExiting;
 
     public MainWindow()
     {
         InitializeComponent();
+
+        NotificationsCheckBox.IsChecked = _notificationService.Enabled;
         ApplySavedThemeSelection();
         _themeSelectionReady = true;
 
         Loaded += MainWindow_Loaded;
-        Closed += (_, _) => _timer.Stop();
+        SourceInitialized += (_, _) => ThemeService.ApplyWindowChromeTheme(this);
+        Closed += MainWindow_Closed;
         _timer.Tick += async (_, _) => await RefreshBatteryAsync();
-    }
 
+        ThemeService.ThemeChanged += ThemeService_ThemeChanged;
+        _trayService.ShowRequested += (_, _) => Dispatcher.Invoke(ShowFromTray);
+        _trayService.RefreshRequested += (_, _) => Dispatcher.BeginInvoke(new Action(async () => await RefreshBatteryAsync()));
+        _trayService.ExitRequested += (_, _) => Dispatcher.Invoke(ExitFromTray);
+    }
 
     private void ApplySavedThemeSelection()
     {
@@ -52,10 +69,27 @@ public partial class MainWindow : Window
             ThemeService.SetPreference(mode);
     }
 
+    private void ThemeService_ThemeChanged(object? sender, EventArgs e)
+    {
+        Dispatcher.BeginInvoke(new Action(() =>
+        {
+            ThemeService.ApplyWindowChromeTheme(this);
+            RenderHistory();
+        }));
+    }
+
     private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
     {
+        ThemeService.ApplyWindowChromeTheme(this);
         await RefreshBatteryAsync();
         _timer.Start();
+    }
+
+    private void MainWindow_Closed(object? sender, EventArgs e)
+    {
+        _timer.Stop();
+        ThemeService.ThemeChanged -= ThemeService_ThemeChanged;
+        _trayService.Dispose();
     }
 
     private async void Refresh_Click(object sender, RoutedEventArgs e)
@@ -74,8 +108,17 @@ public partial class MainWindow : Window
 
         try
         {
-            BatterySnapshot battery = await Task.Run(_batteryService.Read);
+            BatterySnapshot battery = await Task.Run(() =>
+            {
+                BatterySnapshot snapshot = _batteryService.Read();
+                _historyService.Record(snapshot);
+                return snapshot;
+            });
+
             ApplySnapshot(battery);
+            RenderHistory();
+            _trayService.Update(battery);
+            _notificationService.Evaluate(battery, _trayService.ShowNotification);
             LastUpdatedText.Text = $"Updated {DateTime.Now:h:mm:ss tt}";
         }
         catch (Exception ex)
@@ -102,7 +145,7 @@ public partial class MainWindow : Window
         BatteryNameText.Text = battery.Name;
         StateText.Text = battery.State;
         RuntimeText.Text = FormatRuntime(battery.EstimatedRuntimeMinutes, battery.AcOnline);
-        PowerSourceText.Text = battery.AcOnline ? "AC adapter" : "Battery";
+        PowerSourceText.Text = battery.AcOnline ? "AC adapter connected" : "Running on battery";
 
         ApplyChargeVisualState(battery);
 
@@ -111,7 +154,7 @@ public partial class MainWindow : Window
             HealthText.Text = $"{health:0}%";
             HealthBar.Value = Math.Clamp(health, 0, 100);
             HealthLabelText.Text = battery.HealthLabel;
-            WearText.Text = $"Estimated wear: {battery.WearPercent:0.0}%";
+            WearText.Text = $"Estimated wear {battery.WearPercent:0.0}%";
             HealthBar.SetResourceReference(
                 Control.ForegroundProperty,
                 health switch
@@ -127,20 +170,19 @@ public partial class MainWindow : Window
             HealthBar.Value = 0;
             HealthBar.SetResourceReference(Control.ForegroundProperty, "BorderStrongBrush");
             HealthLabelText.Text = "Not available";
-            WearText.Text = "Capacity data is not exposed by this battery driver.";
+            WearText.Text = "Capacity data not exposed";
         }
 
         DesignCapacityText.Text = FormatCapacity(battery.DesignCapacityMWh);
         FullCapacityText.Text = FormatCapacity(battery.FullChargeCapacityMWh);
-        CycleText.Text = battery.CycleCount?.ToString("N0") ?? "Not available";
+        CycleText.Text = battery.CycleCount?.ToString("N0") ?? "N/A";
         TemperatureText.Text = battery.TemperatureC is double temperature
             ? $"{temperature:0.0} °C"
-            : "Not available";
+            : "N/A";
         VoltageText.Text = battery.VoltageMv is uint millivolts
             ? $"{millivolts / 1000.0:0.00} V"
-            : "Not available";
-        ChargeRateText.Text = FormatRate(battery.ChargeRateMw);
-        DischargeRateText.Text = FormatRate(battery.DischargeRateMw);
+            : "N/A";
+        PowerFlowText.Text = FormatPowerFlow(battery);
     }
 
     private void ApplyChargeVisualState(BatterySnapshot battery)
@@ -173,22 +215,170 @@ public partial class MainWindow : Window
         }
     }
 
+    private void RenderHistory()
+    {
+        if (!IsLoaded)
+            return;
+
+        IReadOnlyList<ChargeHistoryEntry> entries = _historyService.GetRecent(HistoryWindow);
+        HistoryCanvas.Children.Clear();
+
+        bool hasHistory = entries.Count > 0;
+        HistoryEmptyText.Visibility = hasHistory ? Visibility.Collapsed : Visibility.Visible;
+        ClearHistoryButton.IsEnabled = hasHistory;
+
+        if (!hasHistory)
+        {
+            HistorySummaryText.Text = "No charge history yet";
+            return;
+        }
+
+        double width = HistoryCanvas.ActualWidth;
+        double height = HistoryCanvas.ActualHeight;
+        if (width < 40 || height < 40)
+            return;
+
+        Brush gridBrush = GetBrush("BorderBrush");
+        Brush lineBrush = GetBrush("AccentBrush");
+        foreach (int percent in new[] { 25, 50, 75 })
+        {
+            double y = height - (percent / 100.0 * height);
+            HistoryCanvas.Children.Add(new Line
+            {
+                X1 = 0,
+                X2 = width,
+                Y1 = y,
+                Y2 = y,
+                Stroke = gridBrush,
+                StrokeThickness = 1,
+                Opacity = 0.55
+            });
+        }
+
+        DateTime end = DateTime.Now;
+        DateTime start = end - HistoryWindow;
+        double totalSeconds = HistoryWindow.TotalSeconds;
+
+        var points = new PointCollection();
+        foreach (ChargeHistoryEntry entry in entries)
+        {
+            double elapsed = Math.Clamp((entry.Timestamp - start).TotalSeconds, 0, totalSeconds);
+            double x = elapsed / totalSeconds * width;
+            double y = height - Math.Clamp(entry.ChargePercent, 0, 100) / 100.0 * height;
+            points.Add(new Point(x, y));
+        }
+
+        if (points.Count > 1)
+        {
+            HistoryCanvas.Children.Add(new Polyline
+            {
+                Points = points,
+                Stroke = lineBrush,
+                StrokeThickness = 2.25,
+                StrokeLineJoin = PenLineJoin.Round,
+                StrokeStartLineCap = PenLineCap.Round,
+                StrokeEndLineCap = PenLineCap.Round
+            });
+        }
+
+        Point lastPoint = points[^1];
+        var marker = new Ellipse
+        {
+            Width = 7,
+            Height = 7,
+            Fill = lineBrush,
+            Stroke = GetBrush("PanelRaisedBrush"),
+            StrokeThickness = 1.5
+        };
+        Canvas.SetLeft(marker, Math.Clamp(lastPoint.X - 3.5, 0, Math.Max(0, width - 7)));
+        Canvas.SetTop(marker, Math.Clamp(lastPoint.Y - 3.5, 0, Math.Max(0, height - 7)));
+        HistoryCanvas.Children.Add(marker);
+
+        ChargeHistoryEntry first = entries[0];
+        ChargeHistoryEntry last = entries[^1];
+        int minimum = entries.Min(entry => entry.ChargePercent);
+        int maximum = entries.Max(entry => entry.ChargePercent);
+        string direction = last.ChargePercent > first.ChargePercent
+            ? $"+{last.ChargePercent - first.ChargePercent}%"
+            : $"{last.ChargePercent - first.ChargePercent}%";
+
+        HistorySummaryText.Text = $"{entries.Count} samples · {minimum}–{maximum}% · net {direction}";
+
+    }
+
+    private System.Windows.Media.Brush GetBrush(string key) =>
+        TryFindResource(key) as System.Windows.Media.Brush ?? System.Windows.Media.Brushes.Gray;
+
+    private void HistoryCanvas_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        RenderHistory();
+    }
+
+    private void ClearHistory_Click(object sender, RoutedEventArgs e)
+    {
+        MessageBoxResult result = MessageBox.Show(
+            "Delete CellVera's locally stored charge history?",
+            "Clear charge history",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+
+        if (result != MessageBoxResult.Yes)
+            return;
+
+        _historyService.Clear();
+        RenderHistory();
+    }
+
+    private void NotificationsCheckBox_Click(object sender, RoutedEventArgs e)
+    {
+        _notificationService.SetEnabled(NotificationsCheckBox.IsChecked == true);
+    }
+
+    private void Window_StateChanged(object sender, EventArgs e)
+    {
+        if (WindowState == WindowState.Minimized && !_isExiting)
+            Hide();
+    }
+
+    private void ShowFromTray()
+    {
+        Show();
+        WindowState = WindowState.Normal;
+        Activate();
+        Topmost = true;
+        Topmost = false;
+        Focus();
+    }
+
+    private void ExitFromTray()
+    {
+        _isExiting = true;
+        Close();
+    }
 
     private static string FormatCapacity(uint? mWh) =>
-        mWh is uint value ? $"{value / 1000.0:0.0} Wh" : "Not available";
+        mWh is uint value ? $"{value / 1000.0:0.0} Wh" : "N/A";
 
-    private static string FormatRate(int? mW) =>
-        mW is int value ? $"{Math.Abs(value) / 1000.0:0.0} W" : "Not available";
+    private static string FormatPowerFlow(BatterySnapshot battery)
+    {
+        if (battery.ChargeRateMw is int charging)
+            return $"+{Math.Abs(charging) / 1000.0:0.0} W";
+
+        if (battery.DischargeRateMw is int discharging)
+            return $"−{Math.Abs(discharging) / 1000.0:0.0} W";
+
+        return "N/A";
+    }
 
     private static string FormatRuntime(int? minutes, bool acOnline)
     {
         if (acOnline)
-            return "Connected to AC";
+            return "On AC power";
 
         if (minutes is not int value || value <= 0)
-            return "Not available";
+            return "Runtime unavailable";
 
-        return value >= 60 ? $"{value / 60} h {value % 60} min" : $"{value} min";
+        return value >= 60 ? $"{value / 60} h {value % 60} min left" : $"{value} min left";
     }
 
     private void PowerSettings_Click(object sender, RoutedEventArgs e)
@@ -225,7 +415,7 @@ public partial class MainWindow : Window
             if (string.IsNullOrWhiteSpace(folder) || !Directory.Exists(folder))
                 folder = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
 
-            string output = Path.Combine(folder, $"BatteryReport-{DateTime.Now:yyyyMMdd-HHmmss}.html");
+            string output = IOPath.Combine(folder, $"BatteryReport-{DateTime.Now:yyyyMMdd-HHmmss}.html");
             var psi = new ProcessStartInfo
             {
                 FileName = "powercfg.exe",

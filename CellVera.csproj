@@ -3,8 +3,9 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
     <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
+    <ImplicitUsings>disable</ImplicitUsings>
     <AssemblyName>CellVera</AssemblyName>
     <RootNamespace>CellVera</RootNamespace>
     <ApplicationIcon>Assets\CellVera.ico</ApplicationIcon>

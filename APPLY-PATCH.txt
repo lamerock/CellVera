@@ -1,0 +1,19 @@
+CellVera compact UI + history/tray/notifications patch
+
+Copy these files into the matching paths in your existing CellVera repository.
+This patch intentionally does NOT include .github/ so your existing GitHub Actions workflows remain untouched.
+
+After copying:
+  dotnet restore
+  dotnet build -c Release
+
+New local data:
+  %LOCALAPPDATA%\CellVera\charge-history.json
+  %LOCALAPPDATA%\CellVera\notifications.json
+
+Features:
+- Compact one-screen dashboard
+- Theme-aware app background and native title bar
+- 24-hour charge history chart; up to 30 days retained locally
+- System tray: Open / Refresh / Exit; minimize-to-tray
+- Optional notifications at 20%, 10%, and fully charged

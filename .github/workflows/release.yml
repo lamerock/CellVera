@@ -1,4 +1,3 @@
-```yaml
 name: Release CellVera
 
 on:
@@ -184,4 +183,118 @@ jobs:
           }
 
           if (-not (Test-Path "Assets\CellVera.ico")) {
-            throw "Assets\CellVera.ico was not
+            throw "Assets\CellVera.ico was not found."
+          }
+
+          if (-not (Test-Path "publish\CellVera.exe")) {
+            throw "Published CellVera.exe was not found."
+          }
+
+          Write-Host "Installer source validation passed."
+
+      # -------------------------------------------------------
+      # 12. Compile CellVera installer
+      # -------------------------------------------------------
+      - name: Build CellVera installer
+        shell: pwsh
+        run: |
+          $publishDir = Join-Path "${{ github.workspace }}" "publish"
+
+          & "$env:INNO_COMPILER" `
+            "/DMyAppVersion=$env:CELLVERA_VERSION" `
+            "/DPublishDir=$publishDir" `
+            "CellVera.iss"
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "Inno Setup failed with exit code $LASTEXITCODE."
+          }
+
+          $installer = `
+            "installer\CellVera-Setup-$env:CELLVERA_VERSION.exe"
+
+          if (-not (Test-Path $installer)) {
+            throw "Installer was not created: $installer"
+          }
+
+          Write-Host ""
+          Write-Host "Installer created:"
+          Write-Host $installer
+
+      # -------------------------------------------------------
+      # 13. Move installer into artifact directory
+      # -------------------------------------------------------
+      - name: Prepare release files
+        shell: pwsh
+        run: |
+          $artifactDir = Join-Path "${{ github.workspace }}" "artifacts"
+
+          $installerSource = Join-Path `
+            "${{ github.workspace }}" `
+            "installer\CellVera-Setup-$env:CELLVERA_VERSION.exe"
+
+          $installerDestination = Join-Path `
+            $artifactDir `
+            "CellVera-Setup-$env:CELLVERA_VERSION.exe"
+
+          Copy-Item `
+            $installerSource `
+            $installerDestination `
+            -Force
+
+          Write-Host "Release files:"
+          Get-ChildItem $artifactDir
+
+      # -------------------------------------------------------
+      # 14. Generate SHA256 checksums
+      # -------------------------------------------------------
+      - name: Generate checksums
+        shell: pwsh
+        run: |
+          $artifactDir = Join-Path "${{ github.workspace }}" "artifacts"
+          $checksumFile = Join-Path $artifactDir "SHA256SUMS.txt"
+
+          $files = Get-ChildItem $artifactDir -File |
+            Where-Object { $_.Name -ne "SHA256SUMS.txt" }
+
+          $lines = foreach ($file in $files) {
+            $hash = Get-FileHash `
+              $file.FullName `
+              -Algorithm SHA256
+
+            "$($hash.Hash.ToLower())  $($file.Name)"
+          }
+
+          $lines | Set-Content `
+            -Path $checksumFile `
+            -Encoding UTF8
+
+          Write-Host ""
+          Write-Host "SHA256 checksums:"
+          Get-Content $checksumFile
+
+      # -------------------------------------------------------
+      # 15. Upload build artifacts to workflow run
+      #
+      # Useful even if release creation later fails.
+      # -------------------------------------------------------
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: CellVera-${{ env.CELLVERA_VERSION }}
+          path: artifacts/
+          if-no-files-found: error
+          retention-days: 30
+
+      # -------------------------------------------------------
+      # 16. Create GitHub Release
+      # -------------------------------------------------------
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          name: CellVera ${{ github.ref_name }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: |
+            artifacts/CellVera-Setup-${{ env.CELLVERA_VERSION }}.exe
+            artifacts/CellVera-${{ env.CELLVERA_VERSION }}-win-x64-portable.zip
+            artifacts/SHA256SUMS.txt

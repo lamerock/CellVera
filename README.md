@@ -1,157 +1,228 @@
 # CellVera
 
-<!-- Replace YOUR_USERNAME in the GitHub badges/links below with your GitHub username. -->
+<!-- Replace lamerock with your GitHub username before publishing. -->
 
-[![Build](https://github.com/lamerock/CellVera/actions/workflows/build.yml/badge.svg)](https://github.com/YOUR_USERNAME/CellVera/actions/workflows/build.yml)
-[![Release](https://img.shields.io/github/v/release/lamerock/CellVera?display_name=tag&sort=semver)](https://github.com/lamerock/CellVera/releases)
+[![Build](https://github.com/lamerock/CellVera/actions/workflows/build.yml/badge.svg)](https://github.com/lamerock/CellVera/actions/workflows/build.yml)
+[![Release](https://img.shields.io/github/v/release/lamerock/CellVera?display_name=tag&sort=semver)](https://github.com/lamerock/CellVera/releases/latest)
 [![.NET 8](https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
 [![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4?logo=windows11&logoColor=white)](https://www.microsoft.com/windows)
 [![WPF](https://img.shields.io/badge/UI-WPF-5C2D91)](https://learn.microsoft.com/dotnet/desktop/wpf/)
-[![Architecture](https://img.shields.io/badge/architecture-x64-informational)](#requirements)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**Battery health and power insights for Windows laptops.**
+**A compact, OEM-neutral battery health and power dashboard for Windows laptops.**
 
-CellVera is a focused Windows laptop battery dashboard for battery health, charge status, capacity, electrical details, and Windows power tools. It is OEM-neutral and does not depend on Lenovo or other manufacturer-specific services.
+CellVera shows the battery information Windows and your laptop firmware expose in one focused desktop app. It combines live charge status, battery health, capacity details, charge history, tray controls, notifications, Windows battery reports, and System/Light/Dark appearance modes without depending on manufacturer-specific utilities.
 
-## Screenshot
+> CellVera is an independent project and is not affiliated with Lenovo, Microsoft, or any laptop manufacturer.
 
 <p align="center">
-  <img src="docs/cellvera-screenshot.png" alt="CellVera application screenshot placeholder" width="900">
+  <img src="docs/cellvera-screenshot-placeholder.png" alt="CellVera application screenshot" width="900">
 </p>
 
-> **Placeholder:** Replace `docs/cellvera-screenshot-placeholder.png` with a real CellVera screenshot when the UI is ready for release. Keep the same filename and the README will update automatically.
+> **Screenshot placeholder:** replace `docs/cellvera-screenshot-placeholder.png` with a real screenshot using the same filename when the UI is ready for release.
 
-## Highlights
+## Features
 
-- Live charge percentage, power source, battery state, and estimated runtime.
-- Battery health and estimated wear when design/full-charge capacity are exposed by the laptop firmware.
-- Design capacity, full-charge capacity, cycle count, temperature, voltage, charge rate, and discharge rate when available.
-- Records a lightweight local 24-hour charge history and retains up to 30 days of samples.
-- System tray support with Open, Refresh, and Exit actions; minimizing hides CellVera to the tray.
-- Optional battery notifications at 20%, 10%, and when charging reaches full.
-- Generates the built-in Windows HTML battery report.
-- Opens Windows Power & battery settings.
-- Refreshes automatically every 15 seconds without blocking the UI thread during WMI reads.
-- Custom CellVera application icon is embedded in the window and `CellVera.exe`.
+| Area | What CellVera provides |
+| --- | --- |
+| Battery status | Charge percentage, charging/discharging state, power source, and estimated runtime when available |
+| Battery health | Health percentage and estimated wear based on design and full-charge capacity |
+| Technical details | Design capacity, full-charge capacity, cycle count, temperature, voltage, and charge/discharge rate when exposed by the device |
+| Charge history | Lightweight local history with a 24-hour chart and up to 30 days of retained samples |
+| Notifications | Optional low-battery, critical-battery, and fully-charged notifications with duplicate suppression |
+| System tray | Minimize to tray with Open, Refresh, and Exit actions |
+| Windows tools | Generate the built-in Windows battery report and open Power & battery settings |
+| Appearance | System, Light, and Dark themes, including native title-bar theming |
+| Refresh | Automatic background refresh without blocking the main UI during WMI reads |
+
+## Download
+
+For normal use, download the latest release from **GitHub Releases**:
+
+**Installer:** `CellVera-Setup-x.y.z.exe`  
+**Portable build:** `CellVera-x.y.z-win-x64-portable.zip`
+
+> Before publishing this README, replace `lamerock` in the badges and release links with your GitHub username.
+
+### Installer
+
+The installer is the recommended option for most users. It installs CellVera for the current Windows user and creates normal Start Menu/uninstall entries.
+
+### Portable build
+
+The portable package can be extracted and run directly. The published build is self-contained, so users do not need to install the .NET runtime separately.
+
+## Requirements
+
+### Running CellVera
+
+- Windows 10 or Windows 11
+- 64-bit Windows (`x64`)
+- A laptop battery exposed through Windows battery/WMI interfaces
+
+### Building from source
+
+- .NET 8 SDK
+- Visual Studio 2022 with the **.NET desktop development** workload, or the .NET CLI
+- Inno Setup 6 only if you want to build the installer locally
 
 ## Appearance
 
-CellVera includes three explicit appearance modes:
+CellVera provides three appearance modes:
 
-- **System** — follows the Windows app theme and reacts when Windows switches between light and dark while CellVera is open.
-- **Light** — always uses CellVera's high-contrast light palette.
-- **Dark** — always uses CellVera's high-contrast dark palette.
+- **System** — follows the Windows app theme and reacts to theme changes while CellVera is open.
+- **Light** — always uses the CellVera light palette.
+- **Dark** — always uses the CellVera dark palette.
 
-The selected mode is saved to:
+The selected mode is saved locally in:
 
 ```text
 %LOCALAPPDATA%\CellVera\settings.json
 ```
 
-System is the default on first launch. The app background, cards, controls, and native title bar follow the effective light/dark palette.
+## Battery notifications
 
-## Download
+Notifications are optional and are designed to avoid repeated alerts. Current defaults are:
 
-For normal use, download the latest installer or portable package from the project's **GitHub Releases** page.
+- **20%** — low-battery warning
+- **10%** — critical-battery warning
+- **100% while plugged in** — fully charged notification
 
-After replacing `YOUR_USERNAME` in this README, this link will point to your releases:
+A notification does not repeatedly fire on every refresh. Its state resets only after the battery meaningfully leaves that condition.
+
+## Charge history and local data
+
+CellVera stores its own settings and history locally under:
 
 ```text
-https://github.com/YOUR_USERNAME/CellVera/releases
+%LOCALAPPDATA%\CellVera\
 ```
 
-## Requirements
+Typical files include:
 
-### To run a published build
+```text
+settings.json
+charge-history.json
+notifications.json
+```
 
-- Windows 10 or Windows 11, 64-bit
-- No separate .NET installation required for the self-contained build
+CellVera does **not** require an account or cloud service. Battery history and preferences stay on the local PC unless the user chooses to copy or share those files.
 
-### To build from source
+## Hardware compatibility
 
-- .NET 8 SDK
-- Visual Studio 2022 with **.NET desktop development**, or the .NET CLI
+Windows exposes basic battery information on most laptops, but richer values depend on the battery, firmware, ACPI implementation, and device drivers.
 
-## Build in Visual Studio
+The following values may be unavailable on some systems:
 
-1. Open `CellVera.csproj`.
-2. Allow NuGet restore to complete.
-3. Choose **Build > Rebuild Solution**.
-4. Run with **F5** or **Ctrl+F5**.
+- Cycle count
+- Battery temperature
+- Charge/discharge rate
+- Design capacity
+- Full-charge capacity
 
-## Build a standalone EXE from PowerShell
+When a value is not exposed, CellVera displays **Not available** rather than inventing or estimating unsupported data.
 
-If PowerShell blocks local scripts for the current session:
+Charge thresholds, conservation modes, and vendor-specific battery controls are intentionally not changed through undocumented OEM interfaces.
+
+## Build from source
+
+Clone the repository and restore dependencies:
+
+```powershell
+git clone https://github.com/lamerock/CellVera.git
+cd CellVera
+dotnet restore
+```
+
+Build a Release configuration:
+
+```powershell
+dotnet build -c Release
+```
+
+Or use the included release script:
 
 ```powershell
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-```
-
-Then build:
-
-```powershell
-cd D:\CellVera
 .\build-release.ps1
 ```
 
-Each release is written to a fresh timestamped folder, for example:
+The release script creates a self-contained Windows x64 publish folder under `dist/`.
+
+### Visual Studio
+
+1. Open `CellVera.csproj`.
+2. Allow restore to complete.
+3. Select **Build > Rebuild Solution**.
+4. Run with **F5** or **Ctrl+F5**.
+
+## CI and releases
+
+CellVera uses GitHub Actions for continuous integration and releases.
+
+- `.github/workflows/build.yml` validates pushes and pull requests against `main`.
+- `.github/workflows/release.yml` creates a self-contained x64 build, portable ZIP, Inno Setup installer, SHA-256 checksums, and GitHub Release for version tags such as `v1.0.2`.
+
+A typical release flow is:
 
 ```text
-dist\CellVera-20261006-120000\CellVera.exe
+feature/fix branch
+      ↓
+pull request
+      ↓
+build passes
+      ↓
+merge to main
+      ↓
+tag vX.Y.Z
+      ↓
+automated GitHub Release
 ```
-
-Using a new publish directory prevents a running older copy of `CellVera.exe` from locking the output file and breaking the next publish.
-
-## Hardware support
-
-Windows exposes basic battery state on most laptops, but richer values depend on the firmware and battery driver. Cycle count, temperature, charge/discharge rate, design capacity, or full-charge capacity may not be exposed on every machine. CellVera displays **Not available** instead of estimating unsupported values.
-
-Charge thresholds and conservation modes are manufacturer-specific. CellVera intentionally does not attempt to change OEM charging limits through undocumented interfaces.
 
 ## Project structure
 
 ```text
 CellVera/
+├── .github/
+│   ├── ISSUE_TEMPLATE/
+│   └── workflows/
 ├── Assets/
 │   └── CellVera.ico
 ├── docs/
 │   └── cellvera-screenshot-placeholder.png
 ├── Models/
-│   ├── BatterySnapshot.cs
-│   └── ChargeHistoryEntry.cs
 ├── Services/
-│   ├── BatteryNotificationService.cs
-│   ├── BatteryService.cs
-│   ├── ChargeHistoryService.cs
-│   ├── ThemeService.cs
-│   └── TrayService.cs
 ├── App.xaml
 ├── App.xaml.cs
 ├── MainWindow.xaml
 ├── MainWindow.xaml.cs
 ├── CellVera.csproj
-├── README.md
-└── build-release.ps1
+├── CellVera.iss
+├── build-release.ps1
+├── CONTRIBUTING.md
+├── CODE_OF_CONDUCT.md
+├── SECURITY.md
+├── LICENSE
+└── README.md
 ```
 
-- `MainWindow.xaml` — compact single-dashboard interface, history chart, notification control, and appearance selector.
-- `MainWindow.xaml.cs` — refresh workflow, local history rendering, tray behavior, notifications, and Windows tool actions.
-- `Services/BatteryService.cs` — Windows/WMI battery data retrieval.
-- `Services/ThemeService.cs` — System/Light/Dark theme selection, persistence, and title-bar theming.
-- `Services/ChargeHistoryService.cs` — throttled local charge-history persistence.
-- `Services/BatteryNotificationService.cs` — low/critical/full notification rules and opt-out preference.
-- `Services/TrayService.cs` — Windows system tray icon and actions.
-- `Models/BatterySnapshot.cs` — battery data model and health calculations.
-- `Models/ChargeHistoryEntry.cs` — local history sample model.
-- `Assets/CellVera.ico` — executable/window icon.
-- `build-release.ps1` — self-contained x64 release publisher.
+## Contributing
 
-## GitHub badge setup
+Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
 
-Before publishing the README, replace every occurrence of:
+For bugs, include your Windows version, laptop model when relevant, the affected CellVera version, and whether the issue occurs in the installer or portable build. Do not attach files that contain private information unless you have reviewed them first.
 
-```text
-YOUR_USERNAME
-```
+## Security
 
-with your actual GitHub username. The **Build** badge will then reflect `.github/workflows/build.yml`, and the **Release** badge will show the latest tagged GitHub release.
+Please do not report suspected security vulnerabilities in a public issue. See [SECURITY.md](SECURITY.md) for the preferred reporting process.
+
+## Code of conduct
+
+Participation in the project is governed by [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
+
+## License
+
+CellVera is licensed under the [MIT License](LICENSE).
+
+Copyright © 2026 CellVera contributors.
+

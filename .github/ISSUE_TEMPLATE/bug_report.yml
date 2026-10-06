@@ -1,0 +1,66 @@
+name: Bug report
+description: Report a reproducible problem in CellVera
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve CellVera. Please avoid uploading private battery reports or diagnostic files without reviewing them first.
+  - type: input
+    id: version
+    attributes:
+      label: CellVera version
+      placeholder: "e.g. 1.0.2"
+    validations:
+      required: true
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version
+      placeholder: "e.g. Windows 11 24H2"
+    validations:
+      required: true
+  - type: input
+    id: laptop
+    attributes:
+      label: Laptop model
+      description: Include this when the issue may be hardware-specific.
+      placeholder: "e.g. Lenovo ThinkPad T14 Gen 3"
+  - type: dropdown
+    id: distribution
+    attributes:
+      label: Distribution
+      options:
+        - Installer
+        - Portable ZIP
+        - Built from source
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open CellVera
+        2. ...
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant error text
+      description: Paste only the relevant error text and remove private information.
+      render: shell

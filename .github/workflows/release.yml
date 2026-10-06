@@ -1,0 +1,187 @@
+```yaml
+name: Release CellVera
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+# Required so GitHub Actions can create a GitHub Release
+permissions:
+  contents: write
+
+env:
+  PROJECT_FILE: CellVera.csproj
+  APP_NAME: CellVera
+  RUNTIME: win-x64
+
+jobs:
+  release:
+    name: Build and Release CellVera
+    runs-on: windows-latest
+
+    steps:
+      # -------------------------------------------------------
+      # 1. Checkout source code
+      # -------------------------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      # -------------------------------------------------------
+      # 2. Install .NET 8 SDK
+      # -------------------------------------------------------
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: "8.0.x"
+
+      # -------------------------------------------------------
+      # 3. Extract version from Git tag
+      #
+      # v1.0.0 -> 1.0.0
+      # -------------------------------------------------------
+      - name: Get release version
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $version = $tag -replace '^v', ''
+
+          if ($version -notmatch '^\d+\.\d+\.\d+$') {
+            throw "Invalid version tag: $tag"
+          }
+
+          Write-Host "Tag: $tag"
+          Write-Host "Version: $version"
+
+          "CELLVERA_VERSION=$version" >> $env:GITHUB_ENV
+
+      # -------------------------------------------------------
+      # 4. Display build information
+      # -------------------------------------------------------
+      - name: Display build information
+        shell: pwsh
+        run: |
+          Write-Host "CellVera version: $env:CELLVERA_VERSION"
+          Write-Host "Runtime: $env:RUNTIME"
+          dotnet --info
+
+      # -------------------------------------------------------
+      # 5. Restore dependencies
+      # -------------------------------------------------------
+      - name: Restore dependencies
+        shell: pwsh
+        run: |
+          dotnet restore "$env:PROJECT_FILE" --runtime "$env:RUNTIME"
+
+      # -------------------------------------------------------
+      # 6. Build CellVera
+      # -------------------------------------------------------
+      - name: Build CellVera
+        shell: pwsh
+        run: |
+          dotnet build "$env:PROJECT_FILE" `
+            --configuration Release `
+            --runtime "$env:RUNTIME" `
+            --no-restore `
+            /p:Version="$env:CELLVERA_VERSION"
+
+      # -------------------------------------------------------
+      # 7. Publish self-contained Windows x64 application
+      # -------------------------------------------------------
+      - name: Publish CellVera
+        shell: pwsh
+        run: |
+          $publishDir = Join-Path "${{ github.workspace }}" "publish"
+
+          dotnet publish "$env:PROJECT_FILE" `
+            --configuration Release `
+            --runtime "$env:RUNTIME" `
+            --self-contained true `
+            --no-restore `
+            --output "$publishDir" `
+            /p:Version="$env:CELLVERA_VERSION"
+
+          if (-not (Test-Path "$publishDir\CellVera.exe")) {
+            throw "CellVera.exe was not created."
+          }
+
+          Write-Host ""
+          Write-Host "Published files:"
+          Get-ChildItem $publishDir
+
+      # -------------------------------------------------------
+      # 8. Create portable ZIP
+      # -------------------------------------------------------
+      - name: Create portable ZIP
+        shell: pwsh
+        run: |
+          $artifactDir = Join-Path "${{ github.workspace }}" "artifacts"
+          $publishDir = Join-Path "${{ github.workspace }}" "publish"
+
+          New-Item `
+            -ItemType Directory `
+            -Force `
+            -Path $artifactDir | Out-Null
+
+          $zipFile = Join-Path `
+            $artifactDir `
+            "CellVera-$env:CELLVERA_VERSION-win-x64-portable.zip"
+
+          Compress-Archive `
+            -Path "$publishDir\*" `
+            -DestinationPath $zipFile `
+            -CompressionLevel Optimal
+
+          if (-not (Test-Path $zipFile)) {
+            throw "Portable ZIP was not created."
+          }
+
+          Write-Host "Created:"
+          Write-Host $zipFile
+
+      # -------------------------------------------------------
+      # 9. Install Inno Setup
+      # -------------------------------------------------------
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          choco install innosetup `
+            --yes `
+            --no-progress
+
+      # -------------------------------------------------------
+      # 10. Locate Inno Setup compiler
+      # -------------------------------------------------------
+      - name: Find Inno Setup compiler
+        shell: pwsh
+        run: |
+          $locations = @(
+            "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
+            "$env:ProgramFiles\Inno Setup 6\ISCC.exe"
+          )
+
+          $iscc = $locations |
+            Where-Object { Test-Path $_ } |
+            Select-Object -First 1
+
+          if (-not $iscc) {
+            throw "Unable to find Inno Setup ISCC.exe."
+          }
+
+          Write-Host "Found Inno Setup:"
+          Write-Host $iscc
+
+          "INNO_COMPILER=$iscc" >> $env:GITHUB_ENV
+
+      # -------------------------------------------------------
+      # 11. Validate installer source files
+      # -------------------------------------------------------
+      - name: Validate installer files
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "CellVera.iss")) {
+            throw "CellVera.iss was not found."
+          }
+
+          if (-not (Test-Path "Assets\CellVera.ico")) {
+            throw "Assets\CellVera.ico was not

@@ -16,7 +16,7 @@ CellVera shows the battery information Windows and your laptop firmware expose i
 > CellVera is an independent project and is not affiliated with Lenovo, Microsoft, or any laptop manufacturer.
 
 <p align="center">
-  <img src="docs/cellvera-screenshot-placeholder.png" alt="CellVera application screenshot" width="900">
+  <img src="docs/cellvera-screenshot.png" alt="CellVera application screenshot" width="900">
 </p>
 
 > **Screenshot placeholder:** replace `docs/cellvera-screenshot-placeholder.png` with a real screenshot using the same filename when the UI is ready for release.

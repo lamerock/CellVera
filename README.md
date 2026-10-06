@@ -2,8 +2,8 @@
 
 <!-- Replace YOUR_USERNAME in the GitHub badges/links below with your GitHub username. -->
 
-[![Build](https://github.com/YOUR_USERNAME/CellVera/actions/workflows/build.yml/badge.svg)](https://github.com/YOUR_USERNAME/CellVera/actions/workflows/build.yml)
-[![Release](https://img.shields.io/github/v/release/YOUR_USERNAME/CellVera?display_name=tag&sort=semver)](https://github.com/YOUR_USERNAME/CellVera/releases)
+[![Build](https://github.com/lamerock/CellVera/actions/workflows/build.yml/badge.svg)](https://github.com/YOUR_USERNAME/CellVera/actions/workflows/build.yml)
+[![Release](https://img.shields.io/github/v/release/YOUR_USERNAME/CellVera?display_name=tag&sort=semver)](https://github.com/lamerock/CellVera/releases)
 [![.NET 8](https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
 [![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4?logo=windows11&logoColor=white)](https://www.microsoft.com/windows)
 [![WPF](https://img.shields.io/badge/UI-WPF-5C2D91)](https://learn.microsoft.com/dotnet/desktop/wpf/)
@@ -16,7 +16,7 @@ CellVera is a focused Windows laptop battery dashboard for battery health, charg
 ## Screenshot
 
 <p align="center">
-  <img src="docs/cellvera-screenshot-placeholder.png" alt="CellVera application screenshot placeholder" width="900">
+  <img src="docs/cellvera-screenshot.png" alt="CellVera application screenshot placeholder" width="900">
 </p>
 
 > **Placeholder:** Replace `docs/cellvera-screenshot-placeholder.png` with a real CellVera screenshot when the UI is ready for release. Keep the same filename and the README will update automatically.
